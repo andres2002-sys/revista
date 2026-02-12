@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Revista Digital - Editor / Visualizador</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
+
+:root{
+  --bg-1:#0f172a;
+  --bg-2:#1f2937;
+  --panel:#111827;
+  --panel-2:#0b1220;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --accent:#f59e0b;
+  --accent-2:#f97316;
+  --shadow:0 18px 40px rgba(0,0,0,0.35);
+  --ring:0 0 0 2px rgba(245,158,11,0.25);
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope","Trebuchet MS",Verdana,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(245,158,11,0.18), transparent 60%),
+    radial-gradient(900px 500px at 90% -20%, rgba(59,130,246,0.15), transparent 55%),
+    linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+
+header {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(90deg, var(--panel), var(--panel-2));
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+
+#controls{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+button {
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+button:hover { background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06)); border-color: rgba(255,255,255,0.25); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: none; box-shadow: var(--ring); }
+#controls button { margin-right: 5px; }
+
+.volume-control{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+}
+
+.volume-btn{
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.volume-range{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 110px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), rgba(255,255,255,0.15));
+  outline: none;
+}
+.volume-range::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+.volume-range::-moz-range-thumb{
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+.book-wrapper {
+  position: relative;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 70px;
+  overflow: visible;
+  touch-action: pan-y;
+  width: 100vw;
+  gap: 0;
+}
+
+.book {
+  width: 600px;
+  height: 850px;
+  perspective: 2600px;
+  position: relative;
+  transition: width 0.3s, transform 0.2s;
+  filter: drop-shadow(0 20px 40px rgba(0,0,0,0.35));
+  z-index: 1;
+}
+
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0.04)), linear-gradient(180deg, #111827, #0b1220);
+  color: var(--text);
+  border: 2px solid rgba(255,255,255,0.1);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-size: 18px;
+}
+.nav-btn:hover { border-color: rgba(245,158,11,0.6); box-shadow: 0 10px 24px rgba(0,0,0,0.4); }
+
+.nav-left { left: 10px; }
+.nav-right { right: 10px; }
+
+.page {
+  width: 100%;
+  height: 100%;
+  background: #090b10;
+  position: absolute;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+  transform-origin: left;
+  transition: transform 0.8s cubic-bezier(0.6, 0.01, 0.2, 1), box-shadow 0.8s ease;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.page::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 20%, rgba(255,255,255,0.06) 50%, rgba(0,0,0,0.18) 100%);
+  background-size: 200% 100%;
+  background-position: 0% 0%;
+  opacity: 0.22;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+
+.page::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,0,0,0.5), rgba(0,0,0,0));
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.page.flipped {
+  transform: rotateY(-180deg);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 12px 22px rgba(0,0,0,0.25);
+}
+
+.page.flipped::before { opacity: 0.38; }
+.page.flipped::after { left: auto; right: 0; transform: scaleX(-1); }
+
+.page.turning-forward {
+  transform: rotateY(-160deg) skewY(0.6deg) scaleX(0.985);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 18px 28px rgba(0,0,0,0.35);
+}
+.page.turning-forward::before { opacity: 0.55; animation: foldForward 0.85s ease; }
+
+.page.turning-back {
+  transform: rotateY(-20deg) skewY(-0.4deg) scaleX(0.99);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 16px 24px rgba(0,0,0,0.32);
+}
+.page.turning-back::before { opacity: 0.5; animation: foldBack 0.85s ease; }
+
+@keyframes foldForward{
+  0%{ background-position: 0% 0%; opacity: 0.35; }
+  40%{ background-position: 40% 0%; opacity: 0.6; }
+  100%{ background-position: 100% 0%; opacity: 0.45; }
+}
+
+@keyframes foldBack{
+  0%{ background-position: 100% 0%; opacity: 0.4; }
+  40%{ background-position: 60% 0%; opacity: 0.6; }
+  100%{ background-position: 0% 0%; opacity: 0.45; }
+}
+
+.page-toolbar {
+  background: rgba(255,255,255,0.9);
+  padding: 6px;
+  display: flex;
+  gap: 5px;
+}
+
+.view-mode .page-toolbar { display: none; }
+
+.canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* zonas índice */
+.hotspot {
+  position: absolute;
+  background: rgba(255,255,255,0.01);
+  cursor: pointer;
+}
+
+/* botón navegación editable */
+.goto-hotspot {
+  position: absolute;
+  background: rgba(17,24,39,0.65);
+  color: var(--text);
+  cursor: move;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px dashed rgba(245,158,11,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.goto-hotspot .resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  right: 2px;
+  bottom: 2px;
+  background: rgba(245,158,11,0.9);
+  border-radius: 2px;
+  cursor: se-resize;
+}
+
+.view-mode .goto-hotspot {
+  background: transparent;
+  color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.view-mode .goto-hotspot .resize-handle { display: none; }
+
+#pageIndicator { margin: 10px; }
+
+.view-only { display: none; }
+.view-mode .view-only { display: inline-flex; }
+.desktop-only { display: inline-flex; }
+.mobile-view .desktop-only { display: none; }
+
+@media (max-width: 700px) {
+  .book-wrapper { padding: 0 52px; }
+  .nav-left { left: 6px; }
+  .nav-right { right: 6px; }
+  .nav-btn { width: 38px; height: 38px; }
+}
+
+/* Vista tipo libro abierto en PC */
+.left-mirror{
+  display: none;
+  width: 600px;
+  height: 850px;
+  position: relative;
+  border-radius: 5px;
+  background: #090b10;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+  overflow: hidden;
+  pointer-events: none;
+}
+.left-mirror img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(-1);
+}
+.left-mirror::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,0.55));
+  opacity: 0.6;
+}
+
+.spread-view .left-mirror{ display: block; }
+.spread-view .book-wrapper{ gap: 16px; }
+
+/* Modo móvil (solo vista) */
+.mobile-view .nav-btn { display: none; }
+.mobile-view .book-wrapper { padding: 0 18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div id="controls">
+    <button class="desktop-only" onclick="prevPage()">◀ Anterior</button>
+    <button class="desktop-only" onclick="nextPage()">Siguiente ▶</button>
+    <div id="audioVolumeControl" class="view-only volume-control">
+      <button id="audioVolumeBtn" class="volume-btn" onclick="toggleAudioMute()" aria-label="Volumen audio">🔊</button>
+      <input id="audioVolumeRange" class="volume-range" type="range" min="0" max="1" step="0.01" value="1" aria-label="Nivel de volumen de audio">
+    </div>
+    <div id="speechVolumeControl" class="view-only volume-control">
+      <button id="speechVolumeBtn" class="volume-btn" onclick="toggleSpeechMute()" aria-label="Volumen lectura">🗣️</button>
+      <input id="speechVolumeRange" class="volume-range" type="range" min="0" max="1" step="0.01" value="1" aria-label="Nivel de volumen de lectura">
+    </div>
+    <button id="readPageBtn" class="view-only" onclick="readCurrentPage()">Leer texto</button>
+    <button id="addPageBtn" onclick="addPage()">➕ Página</button>
+    <button id="deletePageBtn" onclick="deletePage()">🗑 Eliminar página</button>
+    <button id="saveBtn" onclick="saveMagazine()">Guardar</button>
+    <button id="viewerBtn" onclick="openViewer()">Visualizador</button>
+    <button id="exportBtn" onclick="exportPDF()">Exportar PDF</button>
+    <button id="addGotoBtn" onclick="addGotoButton()">➕ Botón Ir</button>
+    <button id="packageBtn" onclick="exportPackage()">Empaquetar</button>
+  </div>
+  <div id="modeLabel">Modo Editor</div>
+</header>
+
+<div class="book-wrapper">
+  <button class="nav-btn nav-left" onclick="prevPage()" aria-label="Página anterior">◀</button>
+  <div class="left-mirror" id="leftMirror"><img id="leftMirrorImg" alt=""></div>
+  <div class="book" id="book"></div>
+  <button class="nav-btn nav-right" onclick="nextPage()" aria-label="Página siguiente">▶</button>
+</div>
+<div id="pageIndicator"></div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const embeddedEl = document.getElementById("embeddedData");
+let embeddedData = null;
+
+if(embeddedEl){
+  try{
+    embeddedData = JSON.parse(embeddedEl.textContent || "null");
+  }catch(e){
+    embeddedData = null;
+  }
+}
+
+const forceView = !!(embeddedData && Array.isArray(embeddedData.pages) && embeddedData.pages.length);
+const mode = forceView ? "view" : (params.get("mode") === "view" ? "view" : "edit");
+const book = document.getElementById("book");
+const bookWrapper = document.querySelector(".book-wrapper");
+const leftMirror = document.getElementById("leftMirror");
+const leftMirrorImg = document.getElementById("leftMirrorImg");
+const BOOK_WIDTH = 600;
+const BOOK_HEIGHT = 850;
+const MOBILE_RATIO = 9 / 16;
+let isMobile = false;
+let currentPage = 0;
+let currentSpeech = null;
+let isReading = false;
+let lastPage = 0;
+const pagesData = [];
+const audioVolumeBtn = document.getElementById("audioVolumeBtn");
+const audioVolumeRange = document.getElementById("audioVolumeRange");
+const speechVolumeBtn = document.getElementById("speechVolumeBtn");
+const speechVolumeRange = document.getElementById("speechVolumeRange");
+const readPageBtn = document.getElementById("readPageBtn");
+let audioVolume = Number(localStorage.getItem("magazineAudioVolume") ?? "1");
+if(!Number.isFinite(audioVolume)) audioVolume = 1;
+let lastAudioVolume = Number(localStorage.getItem("magazineLastAudioVolume") ?? "1");
+if(!Number.isFinite(lastAudioVolume)) lastAudioVolume = 1;
+let speechVolume = Number(localStorage.getItem("magazineSpeechVolume") ?? "1");
+if(!Number.isFinite(speechVolume)) speechVolume = 1;
+let lastSpeechVolume = Number(localStorage.getItem("magazineLastSpeechVolume") ?? "1");
+if(!Number.isFinite(lastSpeechVolume)) lastSpeechVolume = 1;
+let ocrBusy = false;
+const ocrCache = new Map();
+let ocrLoaderPromise = null;
+
+const DB_NAME = "magazineDB";
+const DB_STORE = "magazineStore";
+const DB_KEY = "magazineData";
+
+function openDB(){
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if(!db.objectStoreNames.contains(DB_STORE)){
+        db.createObjectStore(DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function idbGet(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const store = tx.objectStore(DB_STORE);
+    const req = store.get(DB_KEY);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(value){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    const store = tx.objectStore(DB_STORE);
+    const req = store.put(value, DB_KEY);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function normalizePageData(page){
+  const rawHotspots = Array.isArray(page?.hotspots) ? page.hotspots : [];
+  const hotspots = rawHotspots.map(hs => ({
+    x: Number.isFinite(hs?.x) ? hs.x : 40,
+    y: Number.isFinite(hs?.y) ? hs.y : 40,
+    w: Number.isFinite(hs?.w) ? hs.w : 18,
+    h: Number.isFinite(hs?.h) ? hs.h : 10,
+    target: Number.isFinite(hs?.target) ? hs.target : 1
+  }));
+
+  return {
+    img: page?.img || "",
+    audio: page?.audio || "",
+    hotspots
+  };
+}
+
+function updateAudioVolumeUI(){
+  if(!audioVolumeBtn) return;
+  if(audioVolumeRange) audioVolumeRange.value = String(audioVolume);
+  let icon = "🔊";
+  if(audioVolume === 0) icon = "🔇";
+  else if(audioVolume <= 0.35) icon = "🔈";
+  else if(audioVolume <= 0.7) icon = "🔉";
+  audioVolumeBtn.textContent = icon;
+  audioVolumeBtn.title = `Audio: ${Math.round(audioVolume * 100)}%`;
+}
+
+function updateSpeechVolumeUI(){
+  if(!speechVolumeBtn) return;
+  if(speechVolumeRange) speechVolumeRange.value = String(speechVolume);
+  let icon = "🗣️";
+  if(speechVolume === 0) icon = "🔇";
+  else if(speechVolume <= 0.35) icon = "🔈";
+  else if(speechVolume <= 0.7) icon = "🔉";
+  speechVolumeBtn.textContent = icon;
+  speechVolumeBtn.title = `Lectura: ${Math.round(speechVolume * 100)}%`;
+}
+
+function updateReadBtn(){
+  if(!readPageBtn) return;
+  readPageBtn.textContent = isReading ? "Detener lectura" : "Leer texto";
+}
+
+function stopReading(){
+  if(speechSynthesis.speaking || isReading){
+    speechSynthesis.cancel();
+    isReading = false;
+    updateReadBtn();
+  }
+}
+
+function isInteractiveTarget(target){
+  return !!(target && target.closest("button, input, select, textarea, .goto-hotspot"));
+}
+
+function setupSwipeNavigation(){
+  if(!bookWrapper || mode !== "view") return;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  const threshold = 50;
+
+  bookWrapper.addEventListener("pointerdown", e => {
+    if(isMobile && document.body.classList.contains("mobile-view")) return;
+    if(e.pointerType !== "touch") return;
+    if(isInteractiveTarget(e.target)) return;
+    tracking = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  bookWrapper.addEventListener("pointerup", e => {
+    if(!tracking) return;
+    tracking = false;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if(Math.abs(dx) < threshold) return;
+    if(Math.abs(dx) < Math.abs(dy)) return;
+    if(dx > 0) prevPage();
+    else nextPage();
+  });
+
+  bookWrapper.addEventListener("pointercancel", () => {
+    tracking = false;
+  });
+}
+
+function applyAudioVolume(){
+  document.querySelectorAll(".page audio").forEach(audio => {
+    audio.volume = audioVolume;
+  });
+}
+
+function loadOCR(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  if(ocrLoaderPromise) return ocrLoaderPromise;
+  ocrLoaderPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => resolve(window.Tesseract);
+    s.onerror = () => reject(new Error("No se pudo cargar OCR"));
+    document.head.appendChild(s);
+  });
+  return ocrLoaderPromise;
+}
+
+function setAudioVolume(value){
+  const v = clamp(Number(value), 0, 1);
+  audioVolume = v;
+  if(v > 0) lastAudioVolume = v;
+  localStorage.setItem("magazineAudioVolume", String(audioVolume));
+  localStorage.setItem("magazineLastAudioVolume", String(lastAudioVolume));
+  updateAudioVolumeUI();
+  applyAudioVolume();
+}
+
+function setSpeechVolume(value){
+  const v = clamp(Number(value), 0, 1);
+  speechVolume = v;
+  if(v > 0) lastSpeechVolume = v;
+  localStorage.setItem("magazineSpeechVolume", String(speechVolume));
+  localStorage.setItem("magazineLastSpeechVolume", String(lastSpeechVolume));
+  updateSpeechVolumeUI();
+}
+
+function toggleAudioMute(){
+  if(audioVolume === 0){
+    setAudioVolume(lastAudioVolume || 1);
+  }else{
+    setAudioVolume(0);
+  }
+}
+
+function toggleSpeechMute(){
+  if(speechVolume === 0){
+    setSpeechVolume(lastSpeechVolume || 1);
+  }else{
+    setSpeechVolume(0);
+  }
+}
+
+if (mode === "view") {
+  document.getElementById("modeLabel").innerText = "Modo Visualización";
+  document.body.classList.add("view-mode");
+  document.body.style.overflow = "hidden";
+  document.getElementById("addPageBtn").style.display = "none";
+  document.getElementById("deletePageBtn").style.display = "none";
+  document.getElementById("saveBtn").style.display = "none";
+  document.getElementById("viewerBtn").style.display = "none";
+  document.getElementById("exportBtn").style.display = "none";
+  document.getElementById("addGotoBtn").style.display = "none";
+  document.getElementById("packageBtn").style.display = "none";
+  document.getElementById("modeLabel").style.display = "none";
+  document.getElementById("pageIndicator").style.display = "none";
+}
+
+/* ---------- Ajustar tamaño ---------- */
+function adjustBookToImage(img){
+  if(mode === "view") return;
+  book.style.width = BOOK_WIDTH + "px";
+  book.style.height = BOOK_HEIGHT + "px";
+}
+
+function fitBookToViewport(){
+  if(!bookWrapper || !book) return;
+  if(mode !== "view") return;
+  const header = document.querySelector("header");
+  const indicator = document.getElementById("pageIndicator");
+  const headerH = header ? header.offsetHeight : 0;
+  const indicatorH = indicator ? indicator.offsetHeight : 0;
+  const verticalPadding = 24;
+  const horizontalPadding = 24;
+
+  const availableH = window.innerHeight - headerH - indicatorH - verticalPadding;
+  const availableW = window.innerWidth - horizontalPadding;
+  const spread = document.body.classList.contains("spread-view");
+  const gap = spread ? 16 : 0;
+  const ratio = isMobile ? MOBILE_RATIO : (BOOK_WIDTH / BOOK_HEIGHT);
+
+  const totalWidthBase = spread ? (BOOK_WIDTH * 2 + gap) : BOOK_WIDTH;
+  const scale = Math.min(availableW / totalWidthBase, availableH / BOOK_HEIGHT, 1);
+  const width = BOOK_WIDTH * scale;
+  const height = BOOK_HEIGHT * scale;
+
+  book.style.width = `${width}px`;
+  book.style.height = `${height}px`;
+  book.style.transform = "none";
+  bookWrapper.style.height = `${height}px`;
+  if(leftMirror){
+    leftMirror.style.width = `${width}px`;
+    leftMirror.style.height = `${height}px`;
+  }
+}
+
+window.addEventListener("resize", fitBookToViewport);
+
+function updateResponsiveLayout(){
+  const mq = window.matchMedia("(max-width: 900px)");
+  const pointerCoarse = window.matchMedia("(pointer: coarse)");
+  isMobile = mq.matches || pointerCoarse.matches;
+  const enableMobileView = isMobile && mode === "view";
+  const enableSpread = mode === "view" && !enableMobileView;
+  document.body.classList.toggle("mobile-view", enableMobileView);
+  document.body.classList.toggle("spread-view", enableSpread);
+  document.body.style.overflow = enableMobileView ? "hidden" : "auto";
+  fitBookToViewport();
+}
+
+/* ---------- Drag hotspot ---------- */
+function enableHotspotDrag(el, canvas){
+  if(mode === "view") return;
+
+  el.onpointerdown = e => {
+    const rect = canvas.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const shiftX = e.clientX - elRect.left;
+    const shiftY = e.clientY - elRect.top;
+
+    function move(ev){
+      const x = ev.clientX - rect.left - shiftX;
+      const y = ev.clientY - rect.top - shiftY;
+      const maxX = rect.width - elRect.width;
+      const maxY = rect.height - elRect.height;
+      const clampedX = Math.max(0, Math.min(x, maxX));
+      const clampedY = Math.max(0, Math.min(y, maxY));
+      el.style.left = clampedX + "px";
+      el.style.top = clampedY + "px";
+    }
+
+    function up(){
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      syncHotspotDataFromElement(el, canvas);
+    }
+
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  };
+}
+
+function enableHotspotResize(handle, el, canvas, hs){
+  if(mode === "view") return;
+
+  handle.onpointerdown = e => {
+    e.stopPropagation();
+    const rect = canvas.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = hs.w;
+    const startH = hs.h;
+
+    function move(ev){
+      const dx = ((ev.clientX - startX) / rect.width) * 100;
+      const dy = ((ev.clientY - startY) / rect.height) * 100;
+      const newW = clamp(startW + dx, 5, 100 - hs.x);
+      const newH = clamp(startH + dy, 5, 100 - hs.y);
+      hs.w = newW;
+      hs.h = newH;
+      el.style.width = `${newW}%`;
+      el.style.height = `${newH}%`;
+    }
+
+    function up(){
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      saveMagazine();
+    }
+
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  };
+}
+
+/* ---------- Crear botón Ir editable ---------- */
+function addGotoButton(){
+  const page = document.querySelectorAll('.page')[currentPage];
+  if(!page) return;
+  const canvas = page.querySelector('.canvas');
+  const total = document.querySelectorAll('.page').length;
+
+  const suggested = Math.min(currentPage + 2, total);
+  const raw = prompt("Ir a página:", String(suggested));
+  const parsed = Number(raw);
+  const target = Number.isFinite(parsed) ? clamp(parsed, 1, total) : suggested;
+
+  const data = pagesData[currentPage];
+  if(!data) return;
+
+  data.hotspots.push({
+    x: 40,
+    y: 40,
+    w: 18,
+    h: 10,
+    target
+  });
+
+  renderHotspots(canvas, currentPage);
+  saveMagazine();
+}
+
+/* ---------- Crear página ---------- */
+function createPage(imageData = "", audioData = "", hotspots = []) {
+  const page = document.createElement("div");
+  page.className = "page";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "page-toolbar";
+
+  const canvas = document.createElement("div");
+  canvas.className = "canvas";
+
+  const pageData = normalizePageData({ img: imageData, audio: audioData, hotspots });
+  pagesData.push(pageData);
+
+  if (imageData) {
+    const img = document.createElement("img");
+    img.src = imageData;
+    img.onload = () => adjustBookToImage(img);
+    canvas.appendChild(img);
+  }
+
+  if (mode === "edit") {
+    const imgInput = document.createElement("input");
+    imgInput.type = "file";
+    imgInput.accept = "image/*";
+
+    imgInput.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const currentImg = canvas.querySelector("img");
+        if(currentImg) currentImg.remove();
+        const img = document.createElement("img");
+        img.src = ev.target.result;
+        img.onload = () => adjustBookToImage(img);
+        canvas.prepend(img);
+        const idx = getPageIndex(page);
+        if(pagesData[idx]) pagesData[idx].img = ev.target.result;
+        saveMagazine();
+      };
+      reader.readAsDataURL(file);
+    };
+
+    toolbar.appendChild(imgInput);
+  }
+
+  const audio = document.createElement("audio");
+  if(audioData) audio.src = audioData;
+  audio.volume = audioVolume;
+
+  const audioInput = document.createElement("input");
+  audioInput.type = "file";
+  audioInput.accept = "audio/*";
+  audioInput.onchange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      audio.src = ev.target.result;
+      const idx = getPageIndex(page);
+      if(pagesData[idx]) pagesData[idx].audio = ev.target.result;
+      saveMagazine();
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const volume = document.createElement("input");
+  volume.type = "range";
+  volume.min = 0;
+  volume.max = 1;
+  volume.step = 0.01;
+  volume.value = audioVolume;
+  volume.oninput = () => audio.volume = volume.value;
+
+  const readBtn = document.createElement("button");
+  readBtn.textContent = "Leer";
+  readBtn.onclick = () => readCurrentPage();
+
+  if (mode === "edit") toolbar.append(audioInput);
+  toolbar.append(volume, readBtn);
+
+  page.append(toolbar, canvas, audio);
+  book.appendChild(page);
+
+  renderHotspots(canvas, pagesData.length - 1);
+  updatePages();
+}
+
+/* ---------- Hotspots ---------- */
+function getPageIndex(page){
+  const idx = Number(page.dataset.index);
+  if(Number.isFinite(idx)) return idx;
+  return Array.from(document.querySelectorAll(".page")).indexOf(page);
+}
+
+function clamp(value, min, max){
+  return Math.min(Math.max(value, min), max);
+}
+
+if(audioVolumeRange){
+  audioVolumeRange.addEventListener("input", e => {
+    setAudioVolume(e.target.value);
+  });
+}
+
+if(speechVolumeRange){
+  speechVolumeRange.addEventListener("input", e => {
+    setSpeechVolume(e.target.value);
+  });
+}
+
+function renderHotspots(canvas, pageIndex){
+  if(!canvas) return;
+  canvas.querySelectorAll(".goto-hotspot").forEach(el => el.remove());
+
+  const data = pagesData[pageIndex];
+  if(!data || !Array.isArray(data.hotspots)) return;
+
+  data.hotspots.forEach((hs, idx) => {
+    const el = document.createElement("div");
+    el.className = "goto-hotspot";
+    el.style.left = `${hs.x}%`;
+    el.style.top = `${hs.y}%`;
+    el.style.width = `${hs.w}%`;
+    el.style.height = `${hs.h}%`;
+    el.dataset.page = String(pageIndex);
+    el.dataset.index = String(idx);
+
+    if(mode === "edit"){
+      el.textContent = `Ir #${hs.target || 1}`;
+      el.ondblclick = () => {
+        const total = pagesData.length;
+        const raw = prompt("Ir a página:", String(hs.target || 1));
+        if(raw === null) return;
+        const parsed = Number(raw);
+        if(!Number.isFinite(parsed)) return;
+        hs.target = clamp(parsed, 1, total);
+        el.textContent = `Ir #${hs.target}`;
+        saveMagazine();
+      };
+      enableHotspotDrag(el, canvas);
+
+      const handle = document.createElement("div");
+      handle.className = "resize-handle";
+      enableHotspotResize(handle, el, canvas, hs);
+      el.appendChild(handle);
+    }else{
+      el.onclick = () => goToPage(hs.target);
+    }
+
+    canvas.appendChild(el);
+  });
+}
+
+function syncHotspotDataFromElement(el, canvas){
+  const pageIndex = Number(el.dataset.page);
+  const hotspotIndex = Number(el.dataset.index);
+  const data = pagesData[pageIndex];
+  if(!data || !data.hotspots?.[hotspotIndex]) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const x = ((elRect.left - rect.left) / rect.width) * 100;
+  const y = ((elRect.top - rect.top) / rect.height) * 100;
+  const w = (elRect.width / rect.width) * 100;
+  const h = (elRect.height / rect.height) * 100;
+
+  data.hotspots[hotspotIndex].x = clamp(x, 0, 100 - w);
+  data.hotspots[hotspotIndex].y = clamp(y, 0, 100 - h);
+  data.hotspots[hotspotIndex].w = clamp(w, 5, 100);
+  data.hotspots[hotspotIndex].h = clamp(h, 5, 100);
+  saveMagazine();
+}
+
+function goToPage(pageNumber){
+  const total = pagesData.length;
+  if(!total) return;
+  const parsed = Number(pageNumber);
+  if(!Number.isFinite(parsed)) return;
+  const index = clamp(parsed - 1, 0, total - 1);
+  currentPage = index;
+  updatePages();
+}
+
+function getCurrentImage(){
+  const page = document.querySelectorAll(".page")[currentPage];
+  if(!page) return null;
+  return page.querySelector(".canvas img");
+}
+
+async function readCurrentPage(){
+  if(speechSynthesis.speaking || isReading){
+    stopReading();
+    return;
+  }
+
+  const img = getCurrentImage();
+  if(!img || !img.src){
+    alert("Esta página no tiene imagen con texto.");
+    return;
+  }
+
+  const cacheKey = img.src;
+  let text = ocrCache.get(cacheKey);
+
+  if(!text){
+    if(typeof Tesseract === "undefined"){
+      try{
+        await loadOCR();
+      }catch(e){
+        alert("No se pudo cargar el lector OCR. Verifica tu conexión a internet.");
+        return;
+      }
+    }
+    if(ocrBusy) return;
+    ocrBusy = true;
+    const original = readPageBtn ? readPageBtn.textContent : "";
+    if(readPageBtn) readPageBtn.textContent = "Leyendo...";
+    try{
+      const result = await Tesseract.recognize(img.src, "spa");
+      text = (result?.data?.text || "").trim();
+      if(text) ocrCache.set(cacheKey, text);
+    }catch(e){
+      console.warn("Error OCR:", e);
+    }finally{
+      ocrBusy = false;
+      if(readPageBtn) readPageBtn.textContent = original || "Leer texto";
+    }
+  }
+
+  if(!text){
+    alert("No se detectó texto en la imagen.");
+    return;
+  }
+
+  readText(text);
+}
+
+/* ---------- AUDIO ---------- */
+function handleAudioPlayback() {
+  document.querySelectorAll(".page").forEach((p, i) => {
+    const audio = p.querySelector("audio");
+    if (!audio) return;
+
+    audio.volume = audioVolume;
+    if (i === currentPage && audio.src) audio.play().catch(()=>{});
+    else { audio.pause(); audio.currentTime = 0; }
+  });
+}
+
+/* ---------- NAV ---------- */
+function updatePages() {
+  const pages = document.querySelectorAll(".page");
+
+  if(currentPage !== lastPage){
+    stopReading();
+    lastPage = currentPage;
+  }
+
+  pages.forEach((page, i) => {
+    page.dataset.index = i;
+    page.style.zIndex = pages.length - i;
+    i < currentPage ? page.classList.add("flipped") : page.classList.remove("flipped");
+    const canvas = page.querySelector(".canvas");
+    renderHotspots(canvas, i);
+  });
+
+  document.getElementById("pageIndicator").innerText =
+    `Página ${currentPage + 1} / ${pages.length}`;
+
+  handleAudioPlayback();
+}
+
+function updateLeftMirror(delay = 0){
+  if(!leftMirrorImg) return;
+  const apply = () => {
+    if(!document.body.classList.contains("spread-view")){
+      leftMirrorImg.removeAttribute("src");
+      if(leftMirror) leftMirror.style.visibility = "hidden";
+      return;
+    }
+    const prev = currentPage - 1;
+    if(prev >= 0 && pagesData[prev]?.img){
+      leftMirrorImg.src = pagesData[prev].img;
+      if(leftMirror) leftMirror.style.visibility = "visible";
+    }else{
+      leftMirrorImg.removeAttribute("src");
+      if(leftMirror) leftMirror.style.visibility = "hidden";
+    }
+  };
+
+  if(delay > 0){
+    setTimeout(apply, delay);
+  }else{
+    apply();
+  }
+}
+
+function addTurningClass(index, className){
+  const page = document.querySelectorAll(".page")[index];
+  if(!page) return;
+  page.classList.add(className);
+  setTimeout(() => page.classList.remove(className), 850);
+}
+
+function nextPage(){
+  const total = document.querySelectorAll('.page').length;
+  if(currentPage < total - 1){
+    addTurningClass(currentPage, "turning-forward");
+    currentPage++;
+    updatePages();
+    updateLeftMirror(520);
+  }
+}
+
+function prevPage(){
+  if(currentPage > 0){
+    addTurningClass(currentPage - 1, "turning-back");
+    currentPage--;
+    updatePages();
+    updateLeftMirror(520);
+  }
+}
+function addPage(){ createPage(); }
+
+function deletePage(){
+  const pages = document.querySelectorAll('.page');
+  if(pages.length <= 1) return;
+  pages[currentPage].remove();
+  pagesData.splice(currentPage, 1);
+  if(currentPage >= pages.length - 1) currentPage--;
+  updatePages();
+  saveMagazine();
+}
+
+/* ---------- ACCESS ---------- */
+function readText(text){
+  if(currentSpeech) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'es-ES';
+  u.volume = speechVolume;
+  u.onend = () => {
+    isReading = false;
+    updateReadBtn();
+  };
+  u.onerror = () => {
+    isReading = false;
+    updateReadBtn();
+  };
+  currentSpeech = u;
+  isReading = true;
+  updateReadBtn();
+  speechSynthesis.speak(u);
+}
+
+/* ---------- SAVE (IndexedDB) ---------- */
+async function saveMagazine(){
+  try {
+    await idbSet({ pages: pagesData });
+  } catch(e){
+    console.warn("Error guardando:", e);
+    alert("No se pudo guardar. El almacenamiento está lleno.");
+  }
+}
+
+async function loadMagazine(){
+  let data = null;
+  try{
+    if(embeddedData?.pages?.length){
+      data = embeddedData;
+      try{
+        await idbSet(data);
+      }catch(e){
+        console.warn("No se pudo guardar embeddedData.", e);
+      }
+    }else{
+      data = await idbGet();
+    }
+  }catch(e){
+    console.warn("No se pudo leer IndexedDB.", e);
+  }
+
+  if(!data){
+    try{
+      const legacy = JSON.parse(localStorage.getItem('magazineData') || 'null');
+      if(Array.isArray(legacy)){
+        data = { pages: legacy.map(p => normalizePageData({ img: p.img })) };
+        await idbSet(data);
+      }
+    }catch(e){
+      console.warn("Error leyendo localStorage.", e);
+    }
+  }
+
+  if(data?.pages?.length){
+    data.pages.map(normalizePageData).forEach(p => createPage(p.img, p.audio, p.hotspots));
+  }else{
+    createPage();
+  }
+}
+
+/* ---------- VIEWER ---------- */
+async function openViewer(){
+  await saveMagazine();
+  window.open(location.pathname + '?mode=view', '_blank');
+}
+
+/* ---------- Empaquetar ---------- */
+function exportPackage(){
+  try{
+    const data = { pages: pagesData };
+    const json = JSON.stringify(data).replace(/<\/script>/gi, "<\\/script>");
+    const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    const tag = '<script type="application/json" id="embeddedData">' +
+      json +
+      '</' + 'script>\n';
+    const packed = html.replace("</head>", tag + "</head>");
+
+    const blob = new Blob([packed], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Revista-PasionVallenata-compartir.html";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 1000);
+  }catch(e){
+    console.error("Empaquetado falló:", e);
+    alert("No se pudo empaquetar. Intenta con menos páginas o revisa la consola.");
+  }
+}
+
+/* ---------- PDF ---------- */
+function exportPDF(){ window.print(); }
+
+async function init(){
+  updateAudioVolumeUI();
+  updateSpeechVolumeUI();
+  updateReadBtn();
+  await loadMagazine();
+  applyAudioVolume();
+  updatePages();
+  setupSwipeNavigation();
+  updateResponsiveLayout();
+  window.addEventListener("resize", updateResponsiveLayout);
+}
+
+init();
+</script>
+
+</body>
+</html>
