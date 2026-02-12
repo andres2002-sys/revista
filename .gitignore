@@ -1,0 +1,6 @@
+﻿share/
+node_modules/
+_inline_script.js
+*.log
+*.err
+*.url
