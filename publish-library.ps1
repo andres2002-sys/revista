@@ -36,6 +36,7 @@ $baseHtml = Get-Content -Raw -Encoding UTF8 (Join-Path $root "index.html")
 
 $links = @()
 $indexItems = @()
+$mdLinks = @()
 
 foreach($item in $library.items){
   if(-not $item.pages){ continue }
@@ -50,6 +51,7 @@ foreach($item in $library.items){
   Set-Content -Encoding UTF8 -Path $outPath -Value $out
   $url = "$BaseUrl/views/$fileName"
   $links += $url
+  $mdLinks += [PSCustomObject]@{ Name = $item.name; Url = $url }
   $indexItems += "<li><a href=`"$url`">$($item.name)</a></li>"
 }
 
@@ -76,6 +78,36 @@ $indexHtml = @"
 "@
 
 Set-Content -Encoding UTF8 -Path (Join-Path $viewsDir "index.html") -Value $indexHtml
+
+function BuildMarkdownLinks($items){
+  if(-not $items -or $items.Count -eq 0){
+    return '_Sin links todavía. Ejecuta `publish-library.ps1` para generarlos._'
+  }
+  $lines = @()
+  foreach($item in $items){
+    $name = [string]$item.Name
+    if([string]::IsNullOrWhiteSpace($name)){ $name = "Revista" }
+    $name = $name -replace '\s+',' '
+    $lines += "- $name: $($item.Url)"
+  }
+  return [string]::Join("`n", $lines)
+}
+
+$readmePath = Join-Path $root "README.md"
+if(Test-Path $readmePath){
+  $readme = Get-Content -Raw -Encoding UTF8 $readmePath
+  $start = "<!-- MAGAZINE_LINKS_START -->"
+  $end = "<!-- MAGAZINE_LINKS_END -->"
+  $mdBlock = BuildMarkdownLinks $mdLinks
+  if($readme -match [regex]::Escape($start) -and $readme -match [regex]::Escape($end)){
+    $pattern = "(?s)$([regex]::Escape($start)).*?$([regex]::Escape($end))"
+    $replacement = "$start`n$mdBlock`n$end"
+    $readme = [regex]::Replace($readme, $pattern, $replacement)
+  }else{
+    $readme = $readme + "`n`n## Revistas publicadas`n$start`n$mdBlock`n$end`n"
+  }
+  Set-Content -Encoding UTF8 -Path $readmePath -Value $readme
+}
 
 Write-Output "Generado en: $viewsDir"
 Write-Output "Links:"
