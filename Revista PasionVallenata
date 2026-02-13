@@ -71,6 +71,25 @@ header {
 }
 .library-controls input::placeholder{ color: var(--muted); }
 
+.sync-controls{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.sync-controls input{
+  width: 220px;
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.sync-controls input::placeholder{ color: var(--muted); }
+
 button {
   padding: 7px 12px;
   border: 1px solid rgba(255,255,255,0.1);
@@ -407,6 +426,12 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
       <select id="librarySelect" aria-label="Biblioteca de revistas"></select>
       <button id="libraryLoadBtn" onclick="loadFromLibrary()">Abrir</button>
     </div>
+    <div id="syncControls" class="sync-controls edit-only">
+      <input id="syncUrl" type="text" placeholder="URL sincronización (JSON)" aria-label="URL de sincronización">
+      <button id="syncCreateBtn" type="button" onclick="createSyncUrl()">Crear URL</button>
+      <button id="syncPushBtn" type="button" onclick="pushSync()">Subir</button>
+      <button id="syncPullBtn" type="button" onclick="pullSync()">Descargar</button>
+    </div>
   </div>
   <div id="modeLabel">Modo Editor</div>
 </header>
@@ -454,8 +479,11 @@ const speechVolumeBtn = document.getElementById("speechVolumeBtn");
 const speechVolumeRange = document.getElementById("speechVolumeRange");
 const libraryName = document.getElementById("libraryName");
 const librarySelect = document.getElementById("librarySelect");
+const syncUrlInput = document.getElementById("syncUrl");
 const LIB_INDEX_KEY = "magazineLibraryIndex";
 const LIB_PREFIX = "magazine:";
+const AUTO_LIBRARY_ID = "autosave";
+const AUTO_LIBRARY_NAME = "Borrador";
 const readPageBtn = document.getElementById("readPageBtn");
 let audioVolume = Number(localStorage.getItem("magazineAudioVolume") ?? "1");
 if(!Number.isFinite(audioVolume)) audioVolume = 1;
@@ -465,6 +493,7 @@ let speechVolume = Number(localStorage.getItem("magazineSpeechVolume") ?? "1");
 if(!Number.isFinite(speechVolume)) speechVolume = 1;
 let lastSpeechVolume = Number(localStorage.getItem("magazineLastSpeechVolume") ?? "1");
 if(!Number.isFinite(lastSpeechVolume)) lastSpeechVolume = 1;
+const SYNC_URL_KEY = "magazineSyncUrl";
 let ocrBusy = false;
 const ocrCache = new Map();
 let ocrLoaderPromise = null;
@@ -550,6 +579,14 @@ function refreshLibrarySelect(list){
   placeholder.value = "";
   placeholder.textContent = "Seleccionar revista...";
   librarySelect.appendChild(placeholder);
+  if(!list.length){
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "No hay revistas guardadas";
+    empty.disabled = true;
+    librarySelect.appendChild(empty);
+    return;
+  }
   list.forEach(item => {
     const opt = document.createElement("option");
     opt.value = item.id;
@@ -606,6 +643,173 @@ async function exportLibrary(){
     items
   };
   downloadFile("revista-library.json", JSON.stringify(payload), "application/json");
+}
+
+function normalizeSyncUrl(url){
+  if(!url) return "";
+  let cleaned = url.trim();
+  if(!cleaned) return "";
+  if(!/^https?:\/\//i.test(cleaned)){
+    cleaned = "https://" + cleaned;
+  }
+  const match = cleaned.match(/jsonblob\.com\/([a-z0-9]+)$/i);
+  if(match && !cleaned.includes("/api/")){
+    cleaned = `https://jsonblob.com/api/jsonBlob/${match[1]}`;
+  }
+  return cleaned;
+}
+
+function setSyncUrl(url){
+  const cleaned = normalizeSyncUrl(url);
+  if(syncUrlInput) syncUrlInput.value = cleaned;
+  if(cleaned){
+    localStorage.setItem(SYNC_URL_KEY, cleaned);
+  }else{
+    localStorage.removeItem(SYNC_URL_KEY);
+  }
+  return cleaned;
+}
+
+function getSyncUrl(){
+  const inputValue = syncUrlInput?.value?.trim();
+  if(inputValue) return inputValue;
+  return localStorage.getItem(SYNC_URL_KEY) || "";
+}
+
+async function buildLibraryPayload(){
+  const list = await getLibraryIndex();
+  const items = [];
+  for(const entry of list){
+    const data = await idbGetKey(LIB_PREFIX + entry.id);
+    if(data?.pages?.length){
+      items.push({
+        id: entry.id,
+        name: entry.name,
+        updatedAt: entry.updatedAt || new Date().toISOString(),
+        pages: data.pages
+      });
+    }
+  }
+  return {
+    schema: "revista-library",
+    exportedAt: new Date().toISOString(),
+    items
+  };
+}
+
+async function createSyncUrl(){
+  try{
+    const payload = await buildLibraryPayload();
+    const response = await fetch("https://jsonblob.com/api/jsonBlob", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const location = response.headers.get("Location") || response.headers.get("location");
+    if(!location){
+      throw new Error("No se recibió URL.");
+    }
+    const cleaned = setSyncUrl(location);
+    try{
+      await navigator.clipboard.writeText(cleaned);
+    }catch(e){
+      console.warn("No se pudo copiar al portapapeles.", e);
+    }
+    alert("URL creada. Se copió al portapapeles.");
+  }catch(e){
+    console.error("Error creando URL de sincronización:", e);
+    alert("No se pudo crear la URL. Revisa tu conexión.");
+  }
+}
+
+async function pushSync(){
+  try{
+    const url = setSyncUrl(getSyncUrl());
+    if(!url) return alert("Ingresa la URL de sincronización.");
+    const payload = await buildLibraryPayload();
+    if(!payload.items.length){
+      return alert("No hay revistas guardadas en la biblioteca.");
+    }
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+    alert("Sincronización subida.");
+  }catch(e){
+    console.error("Error subiendo sincronización:", e);
+    alert("No se pudo subir. Verifica la URL o la conexión.");
+  }
+}
+
+async function replaceLibraryFromPayload(payload){
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if(!items.length){
+    alert("No hay datos en la sincronización.");
+    return;
+  }
+  const list = [];
+  for(const item of items){
+    if(!item?.id || !Array.isArray(item.pages)) continue;
+    const pages = item.pages.map(p => normalizePageData(p));
+    await idbSetKey(LIB_PREFIX + item.id, { pages });
+    list.push({
+      id: item.id,
+      name: item.name || "Revista",
+      updatedAt: item.updatedAt || new Date().toISOString()
+    });
+  }
+  if(!list.length){
+    alert("La sincronización no contiene revistas válidas.");
+    return;
+  }
+  await setLibraryIndex(list);
+  refreshLibrarySelect(list);
+}
+
+async function pullSync(){
+  try{
+    const url = setSyncUrl(getSyncUrl());
+    if(!url) return alert("Ingresa la URL de sincronización.");
+    const localList = await getLibraryIndex();
+    if(localList.length){
+      const ok = confirm("Esto reemplazará la biblioteca local con la versión en la nube. ¿Continuar?");
+      if(!ok) return;
+    }
+    const response = await fetch(url, {
+      headers: { "Accept": "application/json" }
+    });
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    await replaceLibraryFromPayload(payload);
+    alert("Sincronización descargada.");
+  }catch(e){
+    console.error("Error descargando sincronización:", e);
+    alert("No se pudo descargar. Verifica la URL o la conexión.");
+  }
+}
+
+function loadSyncUrl(){
+  if(!syncUrlInput) return;
+  const stored = localStorage.getItem(SYNC_URL_KEY) || "";
+  if(stored) syncUrlInput.value = stored;
+  syncUrlInput.addEventListener("change", () => {
+    setSyncUrl(syncUrlInput.value);
+  });
 }
 
 function newMagazine(){
@@ -1311,7 +1515,22 @@ function readText(text){
 async function saveMagazine(){
   try {
     await idbSet({ pages: pagesData });
-    if(currentLibraryId) await updateLibraryEntry(currentLibraryId);
+    if(currentLibraryId){
+      await updateLibraryEntry(currentLibraryId);
+    }else{
+      const payload = { pages: pagesData.map(p => normalizePageData(p)) };
+      await idbSetKey(LIB_PREFIX + AUTO_LIBRARY_ID, payload);
+      const list = await getLibraryIndex();
+      if(!list.find(item => item.id === AUTO_LIBRARY_ID)){
+        list.unshift({ id: AUTO_LIBRARY_ID, name: AUTO_LIBRARY_NAME, updatedAt: new Date().toISOString() });
+      }else{
+        const item = list.find(x => x.id === AUTO_LIBRARY_ID);
+        item.updatedAt = new Date().toISOString();
+      }
+      await setLibraryIndex(list);
+      refreshLibrarySelect(list);
+      if(librarySelect) librarySelect.value = AUTO_LIBRARY_ID;
+    }
   } catch(e){
     console.warn("Error guardando:", e);
     alert("No se pudo guardar. El almacenamiento está lleno.");
@@ -1399,6 +1618,7 @@ async function init(){
   updateReadBtn();
   await loadMagazine();
   await loadLibraryIntoUI();
+  loadSyncUrl();
   applyAudioVolume();
   updatePages();
   setupSwipeNavigation();
