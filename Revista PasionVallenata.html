@@ -52,6 +52,25 @@ header {
   align-items: center;
 }
 
+.library-controls{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.library-controls input,
+.library-controls select{
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.library-controls input::placeholder{ color: var(--muted); }
+
 button {
   padding: 7px 12px;
   border: 1px solid rgba(255,255,255,0.1);
@@ -310,6 +329,8 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
 .view-mode .view-only { display: inline-flex; }
 .desktop-only { display: inline-flex; }
 .mobile-view .desktop-only { display: none; }
+.edit-only { display: inline-flex; }
+.view-mode .edit-only { display: none; }
 
 @media (max-width: 700px) {
   .book-wrapper { padding: 0 52px; }
@@ -377,6 +398,14 @@ button:focus-visible { outline: none; box-shadow: var(--ring); }
     <button id="exportBtn" onclick="exportPDF()">Exportar PDF</button>
     <button id="addGotoBtn" onclick="addGotoButton()">➕ Botón Ir</button>
     <button id="packageBtn" onclick="exportPackage()">Empaquetar</button>
+    <div id="libraryControls" class="library-controls">
+      <input id="libraryName" class="edit-only" type="text" placeholder="Nombre revista">
+      <button id="libraryNewBtn" class="edit-only" onclick="newMagazine()">Nueva revista</button>
+      <button id="librarySaveBtn" class="edit-only" onclick="saveToLibrary()">Guardar en biblioteca</button>
+      <button id="libraryExportBtn" class="edit-only" onclick="exportLibrary()">Exportar biblioteca</button>
+      <select id="librarySelect" aria-label="Biblioteca de revistas"></select>
+      <button id="libraryLoadBtn" onclick="loadFromLibrary()">Abrir</button>
+    </div>
   </div>
   <div id="modeLabel">Modo Editor</div>
 </header>
@@ -417,10 +446,15 @@ let currentSpeech = null;
 let isReading = false;
 let lastPage = 0;
 const pagesData = [];
+let currentLibraryId = null;
 const audioVolumeBtn = document.getElementById("audioVolumeBtn");
 const audioVolumeRange = document.getElementById("audioVolumeRange");
 const speechVolumeBtn = document.getElementById("speechVolumeBtn");
 const speechVolumeRange = document.getElementById("speechVolumeRange");
+const libraryName = document.getElementById("libraryName");
+const librarySelect = document.getElementById("librarySelect");
+const LIB_INDEX_KEY = "magazineLibraryIndex";
+const LIB_PREFIX = "magazine:";
 const readPageBtn = document.getElementById("readPageBtn");
 let audioVolume = Number(localStorage.getItem("magazineAudioVolume") ?? "1");
 if(!Number.isFinite(audioVolume)) audioVolume = 1;
@@ -452,26 +486,34 @@ function openDB(){
   });
 }
 
-async function idbGet(){
+async function idbGetKey(key){
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readonly");
     const store = tx.objectStore(DB_STORE);
-    const req = store.get(DB_KEY);
+    const req = store.get(key);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function idbSet(value){
+async function idbSetKey(key, value){
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readwrite");
     const store = tx.objectStore(DB_STORE);
-    const req = store.put(value, DB_KEY);
+    const req = store.put(value, key);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
+}
+
+async function idbGet(){
+  return idbGetKey(DB_KEY);
+}
+
+async function idbSet(value){
+  return idbSetKey(DB_KEY, value);
 }
 
 function normalizePageData(page){
@@ -489,6 +531,137 @@ function normalizePageData(page){
     audio: page?.audio || "",
     hotspots
   };
+}
+
+async function getLibraryIndex(){
+  const list = await idbGetKey(LIB_INDEX_KEY);
+  return Array.isArray(list) ? list : [];
+}
+
+async function setLibraryIndex(list){
+  return idbSetKey(LIB_INDEX_KEY, list);
+}
+
+function refreshLibrarySelect(list){
+  if(!librarySelect) return;
+  librarySelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Seleccionar revista...";
+  librarySelect.appendChild(placeholder);
+  list.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.id;
+    opt.textContent = item.name;
+    librarySelect.appendChild(opt);
+  });
+}
+
+async function loadLibraryIntoUI(){
+  const list = await getLibraryIndex();
+  refreshLibrarySelect(list);
+}
+
+function clearMagazine(){
+  document.querySelectorAll(".page").forEach(p => p.remove());
+  pagesData.length = 0;
+  currentPage = 0;
+}
+
+function downloadFile(name, content, type = "application/json"){
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 500);
+}
+
+async function exportLibrary(){
+  const list = await getLibraryIndex();
+  const items = [];
+  for(const entry of list){
+    const data = await idbGetKey(LIB_PREFIX + entry.id);
+    if(data?.pages?.length){
+      items.push({
+        id: entry.id,
+        name: entry.name,
+        pages: data.pages
+      });
+    }
+  }
+  if(!items.length){
+    alert("No hay revistas guardadas en la biblioteca.");
+    return;
+  }
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    items
+  };
+  downloadFile("revista-library.json", JSON.stringify(payload), "application/json");
+}
+
+function newMagazine(){
+  if(mode === "view") return;
+  const ok = confirm("¿Crear una nueva revista? Se perderán cambios no guardados.");
+  if(!ok) return;
+  clearMagazine();
+  currentLibraryId = null;
+  if(librarySelect) librarySelect.value = "";
+  if(libraryName) libraryName.value = "";
+  createPage();
+  updatePages();
+  saveMagazine();
+}
+
+async function saveToLibrary(){
+  const name = (libraryName?.value || "").trim() || prompt("Nombre de la revista:");
+  if(!name) return;
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}`;
+  const payload = { pages: pagesData.map(p => normalizePageData(p)) };
+
+  await idbSetKey(LIB_PREFIX + id, payload);
+  const list = await getLibraryIndex();
+  list.unshift({ id, name, updatedAt: new Date().toISOString() });
+  await setLibraryIndex(list);
+  refreshLibrarySelect(list);
+  if(librarySelect) librarySelect.value = id;
+  if(libraryName) libraryName.value = name;
+  currentLibraryId = id;
+}
+
+async function loadFromLibrary(){
+  const id = librarySelect?.value;
+  if(!id) return alert("Selecciona una revista.");
+  const data = await idbGetKey(LIB_PREFIX + id);
+  if(!data?.pages?.length) return alert("No se pudo cargar esa revista.");
+  clearMagazine();
+  data.pages.map(normalizePageData).forEach(p => createPage(p.img, p.audio, p.hotspots));
+  updatePages();
+  currentLibraryId = id;
+  const list = await getLibraryIndex();
+  const found = list.find(item => item.id === id);
+  if(found && libraryName) libraryName.value = found.name;
+}
+
+async function updateLibraryEntry(id){
+  if(!id) return;
+  const payload = { pages: pagesData.map(p => normalizePageData(p)) };
+  await idbSetKey(LIB_PREFIX + id, payload);
+  const list = await getLibraryIndex();
+  const item = list.find(entry => entry.id === id);
+  if(item){
+    item.updatedAt = new Date().toISOString();
+    await setLibraryIndex(list);
+    refreshLibrarySelect(list);
+    if(librarySelect) librarySelect.value = id;
+  }
 }
 
 function updateAudioVolumeUI(){
@@ -1137,6 +1310,7 @@ function readText(text){
 async function saveMagazine(){
   try {
     await idbSet({ pages: pagesData });
+    if(currentLibraryId) await updateLibraryEntry(currentLibraryId);
   } catch(e){
     console.warn("Error guardando:", e);
     alert("No se pudo guardar. El almacenamiento está lleno.");
@@ -1144,6 +1318,7 @@ async function saveMagazine(){
 }
 
 async function loadMagazine(){
+  currentLibraryId = null;
   let data = null;
   try{
     if(embeddedData?.pages?.length){
@@ -1222,6 +1397,7 @@ async function init(){
   updateSpeechVolumeUI();
   updateReadBtn();
   await loadMagazine();
+  await loadLibraryIntoUI();
   applyAudioVolume();
   updatePages();
   setupSwipeNavigation();
