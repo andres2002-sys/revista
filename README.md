@@ -9,5 +9,7 @@ https://andres2002-sys.github.io/revista/
 
 ## Revistas publicadas
 <!-- MAGAZINE_LINKS_START -->
-_Sin links todavía. Ejecuta `publish-library.ps1` para generarlos._
+- VERSION 1: https://andres2002-sys.github.io/revista/views/version-1.html
 <!-- MAGAZINE_LINKS_END -->
+
+
