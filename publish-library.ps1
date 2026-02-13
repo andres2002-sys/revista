@@ -64,6 +64,13 @@ $viewsDir = Join-Path $root "views"
 New-Item -ItemType Directory -Force -Path $viewsDir | Out-Null
 $baseHtml = Get-Content -Raw -Encoding UTF8 (Join-Path $root "index.html")
 
+function InsertEmbeddedData([string]$html, [string]$json){
+  $embed = '<script type="application/json" id="embeddedData">' + $json + '</' + 'script>' + "`n"
+  $idx = $html.IndexOf('</head>')
+  if($idx -lt 0){ return $html }
+  return $html.Substring(0, $idx) + $embed + $html.Substring($idx)
+}
+
 function NewShareBlob([string]$json){
   $response = Invoke-WebRequest -Method Post -Uri "https://jsonblob.com/api/jsonBlob" `
     -ContentType "application/json" `
@@ -130,8 +137,7 @@ foreach($item in $items){
 
   if($Mode -eq "embed"){
     $json = ($item | ConvertTo-Json -Depth 30) -replace '</script>', '<\\/script>'
-    $embed = '<script type="application/json" id="embeddedData">' + $json + '</' + 'script>' + "`n"
-    $out = $baseHtml -replace '</head>', ($embed + '</head>')
+    $out = InsertEmbeddedData $baseHtml $json
     $out = $out -replace '<title>.*?</title>', ("<title>" + $item.name + "</title>")
     $fileName = "$slug.html"
     $outPath = Join-Path $viewsDir $fileName
@@ -174,8 +180,7 @@ foreach($item in $items){
 
     $payload = @{ pages = $pagesOut }
     $json = ($payload | ConvertTo-Json -Depth 30) -replace '</script>', '<\\/script>'
-    $embed = '<script type="application/json" id="embeddedData">' + $json + '</' + 'script>' + "`n"
-    $out = $baseHtml -replace '</head>', ($embed + '</head>')
+    $out = InsertEmbeddedData $baseHtml $json
     $out = $out -replace '<title>.*?</title>', ("<title>" + $item.name + "</title>")
     $fileName = "$slug.html"
     $outPath = Join-Path $viewsDir $fileName
